@@ -1,0 +1,12 @@
+# Runtime state and personal artifacts - never publish these.
+# The Chrome profile in particular holds a live Factory session cookie.
+factory-usage-browser/
+factory-logo.png
+*.pid
+*.pos.json
+*.limits.json
+
+# OS noise
+Thumbs.db
+desktop.ini
+.DS_Store
