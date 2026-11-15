@@ -127,6 +127,13 @@ commit it, or share the folder.
 
 `--` in the credits rows means no session files exist yet, so there is nothing to sum.
 
+If `-Status` says the overlay is running but nothing is on screen, the window came up
+without a painted surface. Restart it:
+
+```powershell
+.\factory-usage.ps1 -Hide; .\factory-usage.ps1 -Show
+```
+
 ## License
 
 MIT, see [LICENSE](LICENSE).
