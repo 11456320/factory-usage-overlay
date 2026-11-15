@@ -782,6 +782,11 @@ $win.Add_ContentRendered({
   if ($src) { $script:dpiScale = $src.CompositionTarget.TransformToDevice.M11 }
   Sync-WindowPlacement
   Set-DrawerOpen $script:targetOpen $true
+  # A layered window can come up with a stale DWM surface: present, tool-window
+  # style correct, sampling normally, but nothing painted. One opacity nudge
+  # forces the compositor to rebuild it; at 1% it is not visible as a flicker.
+  $win.Opacity = 0.99
+  $win.Opacity = 1.0
   $script:winReady = $true
   Start-UsageFetch
 })
