@@ -575,6 +575,11 @@ $hoverTimer = New-Object System.Windows.Threading.DispatcherTimer
 $hoverTimer.Interval = [TimeSpan]::FromMilliseconds(50)
 $hoverTimer.Add_Tick({
   if (-not $script:winReady -or $win.ActualWidth -le 0) { return }
+  # A >5s gap in a 50ms timer means the machine slept or the thread was frozen,
+  # which is exactly when a layered surface stops repainting.
+  $now = Get-Date
+  if ($script:lastTick -and ($now - $script:lastTick).TotalSeconds -gt 5) { Invoke-Revive }
+  $script:lastTick = $now
   $pt = New-Object UsageWin32+POINT
   $gotPt = [UsageWin32]::GetCursorPos([ref]$pt)
   if ($script:drag) {
@@ -613,7 +618,6 @@ $hoverTimer.Add_Tick({
                $local.Y -ge 0 -and $local.Y -le $win.ActualHeight)
     } catch { $over = $false }
   }
-  $now = Get-Date
   if ($over) {
     if (-not $script:hoverSince) { $script:hoverSince = $now }
     $script:lastHover = $now
@@ -789,6 +793,31 @@ $win.Add_ContentRendered({
   $win.Opacity = 1.0
   $script:winReady = $true
   Start-UsageFetch
+})
+
+# Modern Standby and display changes drop a layered window's DWM surface, and WPF
+# never repaints it because nothing in the visual tree changed. Re-showing the
+# window is the one thing that makes the compositor rebuild it.
+function Revive-OverlayWindow {
+  try {
+    $win.Hide()
+    $win.Show()
+    $win.Topmost = $true
+  } catch { }
+}
+
+# SystemEvents raises on its own thread, so hop back to the dispatcher.
+function Invoke-Revive {
+  try { [void]$win.Dispatcher.InvokeAsync([Action]{ Revive-OverlayWindow }) } catch { }
+}
+
+[Microsoft.Win32.SystemEvents]::add_PowerModeChanged([Microsoft.Win32.PowerModeChangedEventHandler]{
+  param($sender, $e)
+  if ($e.Mode -eq [Microsoft.Win32.PowerModes]::Resume) { Invoke-Revive }
+})
+[Microsoft.Win32.SystemEvents]::add_DisplaySettingsChanged([EventHandler]{
+  param($sender, $e)
+  Invoke-Revive
 })
 
 $win.Add_SourceInitialized({
